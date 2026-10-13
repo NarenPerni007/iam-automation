@@ -13,8 +13,8 @@ role's last activity and flags roles with no activity in --days days.
 That call is slow on accounts with many roles, so it is off by default.
 
 Usage:
-    python3 scripts/iam-review.py --profile my-profile
-    python3 scripts/iam-review.py --include-last-used --days 90 --format json
+    python3 scripts/iam_review.py --profile my-profile
+    python3 scripts/iam_review.py --include-last-used --days 90 --format json
 
 Requires boto3 and AWS credentials with iam:ListRoles, iam:ListAttachedRolePolicies,
 iam:ListRolePolicies, iam:GetRolePolicy, and (for --include-last-used)
@@ -30,7 +30,12 @@ ADMIN_POLICY_SUFFIX = "AdministratorAccess"
 
 
 def statement_has_wildcard(statement):
-    """Return True if a policy statement allows a wildcard action or resource."""
+    """Return True if a statement allows a wildcard action on all resources.
+
+    A wildcard action scoped to one bucket (s3:* on one bucket) is broad
+    but bounded, so it is not flagged here. A wildcard action on Resource
+    "*" is the pattern this check targets.
+    """
     actions = statement.get("Action", [])
     resources = statement.get("Resource", [])
     if isinstance(actions, str):
@@ -40,7 +45,7 @@ def statement_has_wildcard(statement):
     if statement.get("Effect") != "Allow":
         return False
     action_wildcard = any("*" in a for a in actions)
-    resource_wildcard = any("*" in r for r in resources)
+    resource_wildcard = any(r == "*" for r in resources)
     return action_wildcard and resource_wildcard
 
 
